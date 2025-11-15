@@ -23,12 +23,79 @@ while ($row = $result->fetch_assoc()) {
     $subtotal = $qty * $row['price'];
     $row['qty'] = $qty;
     $row['subtotal'] = $subtotal;
+    $row['stock_quantity'] = isset($row['stock_quantity']) ? (int)$row['stock_quantity'] : -1;
     $total += $subtotal;
     $products[] = $row;
 }
 
 $error = "";
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$coupon_code = isset($_POST['coupon_code']) ? trim(strtoupper($_POST['coupon_code'])) : '';
+$discount_amount = 0;
+$coupon_info = null;
+
+// جلب سعر التوصيل من الإعدادات
+$delivery_fee = (float)get_setting('delivery_fee');
+if ($delivery_fee === null) $delivery_fee = 0;
+
+// التحقق من الكوبون إذا تم إدخاله (عند الضغط على تطبيق أو إرسال النموذج)
+if (!empty($coupon_code) && ($_SERVER['REQUEST_METHOD'] === 'POST')) {
+    $today = date('Y-m-d');
+    $coupon_stmt = $conn->prepare("
+        SELECT * FROM coupons 
+        WHERE code = ? 
+        AND is_active = 1
+        AND (start_date IS NULL OR start_date <= ?)
+        AND (end_date IS NULL OR end_date >= ?)
+        AND (usage_limit IS NULL OR used_count < usage_limit)
+    ");
+    $coupon_stmt->bind_param("sss", $coupon_code, $today, $today);
+    $coupon_stmt->execute();
+    $coupon_result = $coupon_stmt->get_result();
+    $coupon_info = $coupon_result->fetch_assoc();
+    $coupon_stmt->close();
+    
+    if ($coupon_info) {
+        // التحقق من الحد الأدنى للطلب
+        if ($coupon_info['min_amount'] > 0 && $total < $coupon_info['min_amount']) {
+            $error = "الحد الأدنى لاستخدام هذا الكوبون هو " . $coupon_info['min_amount'] . " شيكل.";
+            $coupon_info = null;
+            $coupon_code = '';
+        } else {
+            // حساب الخصم على المنتجات
+            if ($coupon_info['discount_value'] > 0) {
+                if ($coupon_info['discount_type'] == 'percentage') {
+                    $discount_amount = ($total * $coupon_info['discount_value']) / 100;
+                    // تطبيق الحد الأقصى للخصم إذا كان موجوداً
+                    if ($coupon_info['max_discount'] && $discount_amount > $coupon_info['max_discount']) {
+                        $discount_amount = $coupon_info['max_discount'];
+                    }
+                } else {
+                    // خصم ثابت
+                    $discount_amount = $coupon_info['discount_value'];
+                    // لا يمكن أن يكون الخصم أكبر من الإجمالي
+                    if ($discount_amount > $total) {
+                        $discount_amount = $total;
+                    }
+                }
+            }
+        }
+    } else {
+        $error = "كود الكوبون غير صحيح أو منتهي الصلاحية.";
+        $coupon_code = '';
+    }
+}
+
+// حساب سعر التوصيل (مجاني إذا كان الكوبون يوفر توصيل مجاني)
+$final_delivery_fee = $delivery_fee;
+if ($coupon_info && !empty($coupon_info['free_delivery'])) {
+    $final_delivery_fee = 0;
+}
+
+// حساب الإجمالي النهائي: المنتجات - الخصم + التوصيل
+$final_total = $total - $discount_amount + $final_delivery_fee;
+if ($final_total < 0) $final_total = 0;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
 
     $customer_name    = trim($_POST['name']);
     $customer_phone   = trim($_POST['phone']);
@@ -38,81 +105,127 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($customer_name === '' || $customer_phone === '' || $customer_address === '') {
         $error = "الرجاء تعبئة جميع الحقول المطلوبة (الاسم، الهاتف، العنوان).";
     } else {
-        // كود الطلب
-        $order_code = "ALT-" . date("ymdHis");
+        // التحقق من الكمية المتاحة قبل إتمام الطلب
+        foreach ($products as $p) {
+            $stock = isset($p['stock_quantity']) ? (int)$p['stock_quantity'] : -1;
+            // -1 = غير محدود، 0 = نفذت، > 0 = كمية محددة
+            if ($stock == 0) {
+                $error = "عذراً، نفذت كمية " . htmlspecialchars($p['name']) . ".";
+                break;
+            }
+            if ($stock > 0 && $p['qty'] > $stock) {
+                $error = "الكمية المطلوبة من " . htmlspecialchars($p['name']) . " (" . $p['qty'] . ") تتجاوز الكمية المتاحة (" . $stock . ").";
+                break;
+            }
+        }
 
-        $conn->begin_transaction();
+        if ($error === '') {
+            // كود الطلب
+            $order_code = "ALT-" . date("ymdHis");
 
-        try {
-            // حفظ الطلب
-            $stmt = $conn->prepare("
-                INSERT INTO orders (order_code, customer_name, customer_phone, customer_address, note, total_amount, status)
-                VALUES (?, ?, ?, ?, ?, ?, 'جديد')
-            ");
-            $stmt->bind_param("sssssd", $order_code, $customer_name, $customer_phone, $customer_address, $note, $total);
-            $stmt->execute();
-            $order_id = $stmt->insert_id;
-            $stmt->close();
+            $conn->begin_transaction();
 
-            // حفظ عناصر الطلب
-            $stmt_item = $conn->prepare("
-                INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
-                VALUES (?, ?, ?, ?, ?)
-            ");
+            try {
+                // حفظ الطلب مع الكوبون وسعر التوصيل
+                $stmt = $conn->prepare("
+                    INSERT INTO orders (order_code, customer_name, customer_phone, customer_address, note, coupon_code, discount_amount, total_amount, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'جديد')
+                ");
+                $coupon_code_for_db = !empty($coupon_code) && $coupon_info ? $coupon_code : NULL;
+                // نضيف سعر التوصيل للخصم المحفوظ (للتتبع)
+                $total_discount = $discount_amount + ($delivery_fee - $final_delivery_fee);
+                $stmt->bind_param("ssssssdd", $order_code, $customer_name, $customer_phone, $customer_address, $note, $coupon_code_for_db, $total_discount, $final_total);
+                $stmt->execute();
+                $order_id = $stmt->insert_id;
+                $stmt->close();
 
-            foreach ($products as $p) {
-                $pid      = $p['id'];
-                $qty      = $p['qty'];
-                $price    = $p['price'];
-                $subtotal = $p['subtotal'];
+                // حفظ عناصر الطلب وتحديث المخزون
+                $stmt_item = $conn->prepare("
+                    INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
+                    VALUES (?, ?, ?, ?, ?)
+                ");
+
+
+                foreach ($products as $p) {
+                    $pid      = $p['id'];
+                    $qty      = $p['qty'];
+                    $price    = $p['price'];
+                    $subtotal = $p['subtotal'];
 
                 $stmt_item->bind_param("iiidd", $order_id, $pid, $qty, $price, $subtotal);
                 $stmt_item->execute();
             }
-            $stmt_item->close();
+                $stmt_item->close();
+            
+            // لا نخصم الكمية هنا - سيتم الخصم فقط عند تغيير الحالة إلى "مكتمل" من لوحة الإدارة
+            // الكمية يتم التحقق منها فقط عند إنشاء الطلب
+            
+            // تحديث عدد استخدامات الكوبون
+            if ($coupon_info) {
+                $update_coupon_stmt = $conn->prepare("UPDATE coupons SET used_count = used_count + 1 WHERE id = ?");
+                $update_coupon_stmt->bind_param("i", $coupon_info['id']);
+                $update_coupon_stmt->execute();
+                $update_coupon_stmt->close();
+            }
 
-            $conn->commit();
+                $conn->commit();
 
-        } catch (Exception $e) {
-            $conn->rollback();
-            die("حدث خطأ أثناء حفظ الطلب: " . $e->getMessage());
+            } catch (Exception $e) {
+                $conn->rollback();
+                $error = "حدث خطأ أثناء حفظ الطلب: " . $e->getMessage();
+            }
+
+            if ($error === '') {
+                // تجهيز رسالة واتساب
+                $message  = "طلب جديد من موقع الطازج:%0A";
+                $message .= "رقم الطلب: " . urlencode($order_code) . "%0A";
+                $message .= "الاسم: " . urlencode($customer_name) . "%0A";
+                $message .= "الجوال: " . urlencode($customer_phone) . "%0A";
+                $message .= "العنوان: " . urlencode($customer_address) . "%0A";
+                if ($note !== '') {
+                    $message .= "ملاحظات: " . urlencode($note) . "%0A";
+                }
+                $message .= "%0Aالطلبات:%0A";
+
+                foreach ($products as $p) {
+                    $line = "- " . $p['name'] .
+                            " | الكمية: " . $p['qty'] .
+                            " | السعر: " . $p['price'] .
+                            " | المجموع: " . $p['subtotal'] . " شيكل";
+                    $message .= urlencode($line) . "%0A";
+                }
+
+                if ($discount_amount > 0) {
+                    $message .= "%0Aالخصم: -" . $discount_amount . " شيكل";
+                    if ($coupon_code) {
+                        $message .= " (كوبون: " . urlencode($coupon_code) . ")";
+                    }
+                }
+                if ($final_delivery_fee > 0) {
+                    $message .= "%0Aسعر التوصيل: " . $final_delivery_fee . " شيكل";
+                } elseif ($coupon_info && !empty($coupon_info['free_delivery'])) {
+                    $message .= "%0Aالتوصيل: مجاني (كوبون: " . urlencode($coupon_code) . ")";
+                } elseif ($delivery_fee > 0) {
+                    $message .= "%0Aسعر التوصيل: " . $delivery_fee . " شيكل";
+                }
+                $message .= "%0Aالإجمالي الكلي: " . $final_total . " شيكل";
+
+                // رقم الواتساب من الإعدادات
+                $whatsapp_number = get_setting('whatsapp_number');
+                if (!$whatsapp_number) {
+                    $whatsapp_number = "9725XXXXXXXX"; // احتياطي لو مش موجود في settings
+                }
+
+                $url = "https://wa.me/" . $whatsapp_number . "?text=" . $message;
+
+                // تفريغ السلة
+                unset($_SESSION['cart']);
+
+                // تحويل المستخدم لواتساب
+                header("Location: " . $url);
+                exit;
+            }
         }
-
-        // تجهيز رسالة واتساب
-        $message  = "طلب جديد من موقع الطازج:%0A";
-        $message .= "رقم الطلب: " . urlencode($order_code) . "%0A";
-        $message .= "الاسم: " . urlencode($customer_name) . "%0A";
-        $message .= "الجوال: " . urlencode($customer_phone) . "%0A";
-        $message .= "العنوان: " . urlencode($customer_address) . "%0A";
-        if ($note !== '') {
-            $message .= "ملاحظات: " . urlencode($note) . "%0A";
-        }
-        $message .= "%0Aالطلبات:%0A";
-
-        foreach ($products as $p) {
-            $line = "- " . $p['name'] .
-                    " | الكمية: " . $p['qty'] .
-                    " | السعر: " . $p['price'] .
-                    " | المجموع: " . $p['subtotal'] . " شيكل";
-            $message .= urlencode($line) . "%0A";
-        }
-
-        $message .= "%0Aالإجمالي الكلي: " . $total . " شيكل";
-
-        // رقم الواتساب من الإعدادات
-        $whatsapp_number = get_setting('whatsapp_number');
-        if (!$whatsapp_number) {
-            $whatsapp_number = "9725XXXXXXXX"; // احتياطي لو مش موجود في settings
-        }
-
-        $url = "https://wa.me/" . $whatsapp_number . "?text=" . $message;
-
-        // تفريغ السلة
-        unset($_SESSION['cart']);
-
-        // تحويل المستخدم لواتساب
-        header("Location: " . $url);
-        exit;
     }
 }
 ?>
@@ -180,9 +293,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php endforeach; ?>
                     </ul>
 
-                    <div class="d-flex justify-content-between">
+                    <?php if ($discount_amount > 0 || $final_delivery_fee > 0 || ($coupon_info && !empty($coupon_info['free_delivery']))): ?>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>الإجمالي الفرعي:</span>
+                            <span><?php echo number_format($total, 2); ?> شيكل</span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($discount_amount > 0): ?>
+                        <div class="d-flex justify-content-between mb-2 text-danger">
+                            <span>الخصم <?php if ($coupon_code): ?>(<?php echo htmlspecialchars($coupon_code); ?>)<?php endif; ?>:</span>
+                            <span>-<?php echo number_format($discount_amount, 2); ?> شيكل</span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($final_delivery_fee > 0): ?>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>سعر التوصيل:</span>
+                            <span><?php echo number_format($final_delivery_fee, 2); ?> شيكل</span>
+                        </div>
+                    <?php elseif ($coupon_info && !empty($coupon_info['free_delivery'])): ?>
+                        <div class="d-flex justify-content-between mb-2 text-success">
+                            <span>التوصيل (<?php echo htmlspecialchars($coupon_code); ?>):</span>
+                            <span>مجاني</span>
+                        </div>
+                    <?php elseif ($delivery_fee > 0): ?>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>سعر التوصيل:</span>
+                            <span><?php echo number_format($delivery_fee, 2); ?> شيكل</span>
+                        </div>
+                    <?php endif; ?>
+                    <div class="d-flex justify-content-between border-top pt-2">
                         <strong>الإجمالي الكلي:</strong>
-                        <strong class="text-success"><?php echo $total; ?> شيكل</strong>
+                        <strong class="text-success"><?php echo number_format($final_total, 2); ?> شيكل</strong>
                     </div>
 
                     <p class="small text-muted mt-3 mb-0">
@@ -200,8 +341,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="card-body">
                     <?php if ($error): ?>
-                        <div class="alert alert-danger py-2">
-                            <?php echo $error; ?>
+                        <div class="alert alert-danger alert-dismissible fade show py-2">
+                            <?php echo htmlspecialchars($error); ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     <?php endif; ?>
 
@@ -220,6 +362,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label class="form-label">العنوان بالتفصيل</label>
                             <textarea name="address" class="form-control" rows="3" required
                                       placeholder="المدينة، الحي، أقرب معلم، رقم المنزل أو البناية"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">كود الكوبون (اختياري)</label>
+                            <div class="input-group">
+                                <input type="text" name="coupon_code" class="form-control" 
+                                       placeholder="أدخل كود الكوبون" 
+                                       value="<?php echo htmlspecialchars($coupon_code); ?>"
+                                       style="text-transform:uppercase;">
+                                <button type="submit" name="apply_coupon" class="btn btn-outline-primary" formnovalidate>
+                                    تطبيق
+                                </button>
+                            </div>
+                            <?php if ($coupon_info): ?>
+                                <small class="text-success d-block mt-1">
+                                    ✓ تم تطبيق الكوبون!
+                                    <?php if ($discount_amount > 0): ?>
+                                        خصم <?php echo number_format($discount_amount, 2); ?> شيكل
+                                    <?php endif; ?>
+                                    <?php if (!empty($coupon_info['free_delivery'])): ?>
+                                        <?php if ($discount_amount > 0): ?> + <?php endif; ?>
+                                        توصيل مجاني
+                                    <?php endif; ?>
+                                </small>
+                            <?php endif; ?>
                         </div>
 
                         <div class="mb-3">

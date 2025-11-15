@@ -19,9 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add'])) {
         @move_uploaded_file($_FILES['image']['tmp_name'], "../uploads/" . $image_name);
     }
 
+    $stock_quantity = isset($_POST['stock_quantity']) && $_POST['stock_quantity'] !== '' ? (int)$_POST['stock_quantity'] : -1;
+    if ($stock_quantity < 0) $stock_quantity = -1; // -1 يعني غير محدود
+
     if ($name !== '' && $price > 0) {
-        $stmt = $conn->prepare("INSERT INTO products (category_id, name, description, price, unit, image) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("issdss", $cat_id, $name, $desc, $price, $unit, $image_name);
+        $stmt = $conn->prepare("INSERT INTO products (category_id, name, description, price, stock_quantity, unit, image) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("issdiss", $cat_id, $name, $desc, $price, $stock_quantity, $unit, $image_name);
         $stmt->execute();
         $stmt->close();
         header("Location: products.php");
@@ -98,6 +101,12 @@ $products = $conn->query("
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label">الكمية المتاحة (المخزون)</label>
+                        <input type="number" name="stock_quantity" class="form-control" value="" min="-1" placeholder="مثال: 100">
+                        <small class="text-muted">اتركه فارغاً أو -1 للمنتجات غير المحدودة (بدون تتبع الكمية)، أو أدخل 0 إذا نفذت الكمية</small>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label">الوحدة</label>
                         <input type="text" name="unit" class="form-control" value="كغم">
                     </div>
@@ -143,6 +152,7 @@ $products = $conn->query("
                                 <th>الاسم</th>
                                 <th>التصنيف</th>
                                 <th>السعر</th>
+                                <th>الكمية</th>
                                 <th>ترند</th>
                                 <th>عرض</th>
                                 <th class="text-center">إجراءات</th>
@@ -166,6 +176,18 @@ $products = $conn->query("
                                     </td>
                                     <td><?php echo htmlspecialchars($p['category_name']); ?></td>
                                     <td><?php echo $p['price']; ?> شيكل</td>
+                                    <td>
+                                        <?php 
+                                        $stock = isset($p['stock_quantity']) ? (int)$p['stock_quantity'] : -1;
+                                        if ($stock > 0): 
+                                        ?>
+                                            <span class="badge bg-success"><?php echo $stock; ?></span>
+                                        <?php elseif ($stock == 0): ?>
+                                            <span class="badge bg-danger">نفذت الكمية</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-info">غير محدود</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <?php if ($p['is_trending']): ?>
                                             <span class="badge bg-warning text-dark">ترند 🔥</span>
@@ -229,7 +251,7 @@ $products = $conn->query("
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="8" class="text-center text-muted">
+                                <td colspan="9" class="text-center text-muted">
                                     لا توجد منتجات بعد.
                                 </td>
                             </tr>

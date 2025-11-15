@@ -88,6 +88,10 @@ if (!is_logged_in()) {
                    href="orders.php">
                     📦 الطلبات
                 </a>
+                <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'coupons.php' ? 'active' : ''; ?>"
+                   href="coupons.php">
+                    🎫 الكوبونات والخصومات
+                </a>
                 <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'active' : ''; ?>"
                    href="settings.php">
                     ⚙️ الإعدادات

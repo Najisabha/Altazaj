@@ -33,6 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $price  = (float) $_POST['price'];
     $unit   = trim($_POST['unit']);
     $cat_id = (int) $_POST['category_id'];
+    $stock_quantity = isset($_POST['stock_quantity']) && $_POST['stock_quantity'] !== '' ? (int)$_POST['stock_quantity'] : -1;
+    if ($stock_quantity < 0) $stock_quantity = -1; // -1 يعني غير محدود
 
     // حقول التحكم
     $is_weight_based = isset($_POST['is_weight_based']) ? 1 : 0;
@@ -57,18 +59,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($name !== '' && $price > 0) {
         $stmt = $conn->prepare("
-            UPDATE products 
-            SET category_id = ?, 
-                name        = ?, 
-                description = ?, 
-                price       = ?, 
-                unit        = ?, 
-                image       = ?, 
-                is_weight_based = ?, 
-                is_trending = ?, 
-                is_offer    = ?, 
-                is_active   = ?
-            WHERE id = ?
+        UPDATE products 
+        SET category_id = ?, 
+            name        = ?, 
+            description = ?, 
+            price       = ?, 
+            stock_quantity = ?,
+            unit        = ?, 
+            image       = ?, 
+            is_weight_based = ?, 
+            is_trending = ?, 
+            is_offer    = ?, 
+            is_active   = ?
+        WHERE id = ?
         ");
 
         // الأنواع: i = int, s = string, d = double
@@ -76,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // name (s)
         // desc (s)
         // price (d)
+        // stock_quantity (i)
         // unit (s)
         // image_name (s)
         // is_weight_based (i)
@@ -84,11 +88,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // is_active (i)
         // id (i)
         $stmt->bind_param(
-            "issdssiiiii",
+            "issdissiiiii",
             $cat_id,
             $name,
             $desc,
             $price,
+            $stock_quantity,
             $unit,
             $image_name,
             $is_weight_based,
@@ -155,11 +160,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    value="<?php echo $product['price']; ?>">
                         </div>
                         <div class="col-md-4 mb-3">
+                            <label class="form-label">الكمية المتاحة (المخزون)</label>
+                            <input type="number" name="stock_quantity" class="form-control" 
+                                   value="<?php 
+                                   $stock_val = isset($product['stock_quantity']) ? (int)$product['stock_quantity'] : -1;
+                                   echo $stock_val >= 0 ? $stock_val : '';
+                                   ?>" 
+                                   min="-1" placeholder="فارغ أو -1 = غير محدود">
+                            <small class="text-muted">فارغ أو -1 = غير محدود، 0 = نفذت الكمية</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">الوحدة</label>
                             <input type="text" name="unit" class="form-control"
                                    value="<?php echo htmlspecialchars($product['unit']); ?>">
                         </div>
-                        <div class="col-md-4 mb-3">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
                             <label class="form-label">التصنيف</label>
                             <select name="category_id" class="form-select">
                                 <?php

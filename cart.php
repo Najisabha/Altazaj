@@ -5,6 +5,8 @@ require 'db.php';
 $cart = isset($_SESSION['cart']) ? $_SESSION['cart'] : [];
 $products = [];
 $total = 0;
+$error = isset($_SESSION['error']) ? $_SESSION['error'] : '';
+unset($_SESSION['error']);
 
 if (!empty($cart)) {
     $ids = implode(',', array_keys($cart));
@@ -15,6 +17,7 @@ if (!empty($cart)) {
         $subtotal = $qty * $row['price'];
         $row['qty'] = $qty;
         $row['subtotal'] = $subtotal;
+        $row['stock_quantity'] = isset($row['stock_quantity']) ? (int)$row['stock_quantity'] : 0;
         $total += $subtotal;
         $products[] = $row;
     }
@@ -72,6 +75,13 @@ $cart_count = array_sum($cart);
         </div>
     </div>
 
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?php echo htmlspecialchars($error); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
     <?php if (empty($products)): ?>
         <div class="alert alert-warning">
             السلة فارغة حاليًا. يمكنك تصفح المنتجات من <a href="index.php" class="alert-link">الصفحة الرئيسية</a>.
@@ -92,13 +102,21 @@ $cart_count = array_sum($cart);
                                 </tr>
                             </thead>
                             <tbody>
-                            <?php foreach ($products as $p): ?>
+                            <?php foreach ($products as $p): 
+                                $stock = isset($p['stock_quantity']) ? (int)$p['stock_quantity'] : -1;
+                                $max_qty = ($stock > 0) ? $stock : 999999;
+                            ?>
                                 <tr>
                                     <td>
                                         <strong><?php echo htmlspecialchars($p['name']); ?></strong><br>
                                         <small class="text-muted">
                                             <?php echo htmlspecialchars($p['unit']); ?>
                                         </small>
+                                        <?php if ($stock > 0): ?>
+                                            <br><small class="text-info">المتاح: <?php echo $stock; ?></small>
+                                        <?php elseif ($stock == 0): ?>
+                                            <br><small class="text-danger">نفذت الكمية</small>
+                                        <?php endif; ?>
                                     </td>
                                     <td><?php echo $p['price']; ?></td>
                                     <td style="max-width: 90px;">
@@ -106,6 +124,7 @@ $cart_count = array_sum($cart);
                                                name="qty[<?php echo $p['id']; ?>]"
                                                value="<?php echo $p['qty']; ?>"
                                                min="1"
+                                               max="<?php echo $max_qty; ?>"
                                                class="form-control form-control-sm text-center">
                                     </td>
                                     <td><?php echo $p['subtotal']; ?> شيكل</td>
