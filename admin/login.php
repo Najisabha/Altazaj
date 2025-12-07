@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_result($id, $name, $hash);
 
     if ($stmt->fetch()) {
-        if (password_verify($pass, $hash)) {
+        if ($pass === $hash) {
             $_SESSION['user_id'] = $id;
             $_SESSION['user_name'] = $name;
             header("Location: index.php");
