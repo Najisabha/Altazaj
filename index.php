@@ -1,3 +1,120 @@
+<?php
+session_start();
+require 'db.php';
+
+// جلب التصنيفات الرئيسية (أب فقط) - مع إعادة تعيين المؤشر
+$cats_result_all = $conn->query("SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1");
+$cats_result = $conn->query("SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1");
+
+// لمعرفة هل يوجد بحث أو فلترة تصنيف
+$has_filter = !empty($_GET['q']) || !empty($_GET['cat']);
+$show_categories = !$has_filter; // عرض التصنيفات فقط عندما لا يوجد فلترة
+
+// أقسام خاصة تظهر فقط عندما لا يكون هناك بحث / فلترة
+$offers = $trending = $bestsellers = null;
+
+if (!$has_filter) {
+    // قسم العروض
+    $sql_offers = "
+        SELECT p.*, c.name AS category_name 
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.is_active = 1 AND p.is_offer = 1
+        ORDER BY p.created_at DESC
+        LIMIT 6
+    ";
+    $offers = $conn->query($sql_offers);
+
+    // قسم الترند
+    $sql_trend = "
+        SELECT p.*, c.name AS category_name 
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.is_active = 1 AND p.is_trending = 1
+        ORDER BY p.created_at DESC
+        LIMIT 6
+    ";
+    $trending = $conn->query($sql_trend);
+
+    // قسم الأكثر مبيعاً من جدول order_items (يومي فقط - طلبات اليوم المكتملة)
+    $today = date('Y-m-d');
+    $sql_best = "
+        SELECT p.*, c.name AS category_name, 
+               COALESCE(SUM(oi.quantity), 0) AS total_sold
+        FROM products p
+        LEFT JOIN order_items oi ON oi.product_id = p.id
+        LEFT JOIN orders o ON o.id = oi.order_id
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.is_active = 1
+          AND o.status = 'مكتمل'
+          AND DATE(o.created_at) = ?
+        GROUP BY p.id
+        HAVING total_sold > 0
+        ORDER BY total_sold DESC, p.created_at DESC
+        LIMIT 6
+    ";
+    $stmt_best = $conn->prepare($sql_best);
+    $stmt_best->bind_param("s", $today);
+    $stmt_best->execute();
+    $bestsellers = $stmt_best->get_result();
+}
+
+// إعداد استعلام المنتجات الأساسية
+$sql = "SELECT p.*, c.name AS category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.is_active = 1";
+$params = [];
+$types  = "";
+
+// فلترة بالبحث
+$current_search = '';
+if (!empty($_GET['q'])) {
+    $q = "%".$_GET['q']."%";
+    $sql .= " AND p.name LIKE ?";
+    $params[] = $q;
+    $types   .= "s";
+    $current_search = $_GET['q'];
+}
+
+// فلترة بالتصنيف
+$current_cat = '';
+$current_cat_name = '';
+if (!empty($_GET['cat'])) {
+    $cat_id = (int) $_GET['cat'];
+    // جلب اسم التصنيف
+    $cat_stmt = $conn->prepare("SELECT name FROM categories WHERE id = ?");
+    $cat_stmt->bind_param("i", $cat_id);
+    $cat_stmt->execute();
+    $cat_result = $cat_stmt->get_result();
+    if ($cat_row = $cat_result->fetch_assoc()) {
+        $current_cat_name = $cat_row['name'];
+    }
+    $cat_stmt->close();
+    
+    // فلترة المنتجات: إما في التصنيف المحدد أو في تصنيفات فرعية له
+    // نستخدم استعلام فرعي للتصنيفات الفرعية
+    $sql .= " AND (p.category_id = ? OR p.category_id IN (SELECT id FROM categories WHERE parent_id = ?))";
+    $params[] = $cat_id;
+    $params[] = $cat_id;
+    $types   .= "ii";
+    $current_cat = $cat_id;
+}
+
+// ترتيب: أولاً الترند ثم الأحدث
+$sql .= " ORDER BY p.is_trending DESC, p.created_at DESC";
+
+$stmt = $conn->prepare($sql);
+if (!empty($params)) {
+    $stmt->bind_param($types, ...$params);
+}
+$stmt->execute();
+$result = $stmt->get_result();
+
+$cart_count = isset($_SESSION['cart']) ? array_sum($_SESSION['cart']) : 0;
+$error = isset($_SESSION['error']) ? $_SESSION['error'] : '';
+unset($_SESSION['error']);
+?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -543,120 +660,3 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-<?php
-session_start();
-require 'db.php';
-
-// جلب التصنيفات الرئيسية (أب فقط) - مع إعادة تعيين المؤشر
-$cats_result_all = $conn->query("SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1");
-$cats_result = $conn->query("SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1");
-
-// لمعرفة هل يوجد بحث أو فلترة تصنيف
-$has_filter = !empty($_GET['q']) || !empty($_GET['cat']);
-$show_categories = !$has_filter; // عرض التصنيفات فقط عندما لا يوجد فلترة
-
-// أقسام خاصة تظهر فقط عندما لا يكون هناك بحث / فلترة
-$offers = $trending = $bestsellers = null;
-
-if (!$has_filter) {
-    // قسم العروض
-    $sql_offers = "
-        SELECT p.*, c.name AS category_name 
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        WHERE p.is_active = 1 AND p.is_offer = 1
-        ORDER BY p.created_at DESC
-        LIMIT 6
-    ";
-    $offers = $conn->query($sql_offers);
-
-    // قسم الترند
-    $sql_trend = "
-        SELECT p.*, c.name AS category_name 
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        WHERE p.is_active = 1 AND p.is_trending = 1
-        ORDER BY p.created_at DESC
-        LIMIT 6
-    ";
-    $trending = $conn->query($sql_trend);
-
-    // قسم الأكثر مبيعاً من جدول order_items (يومي فقط - طلبات اليوم المكتملة)
-    $today = date('Y-m-d');
-    $sql_best = "
-        SELECT p.*, c.name AS category_name, 
-               COALESCE(SUM(oi.quantity), 0) AS total_sold
-        FROM products p
-        LEFT JOIN order_items oi ON oi.product_id = p.id
-        LEFT JOIN orders o ON o.id = oi.order_id
-        LEFT JOIN categories c ON p.category_id = c.id
-        WHERE p.is_active = 1
-          AND o.status = 'مكتمل'
-          AND DATE(o.created_at) = ?
-        GROUP BY p.id
-        HAVING total_sold > 0
-        ORDER BY total_sold DESC, p.created_at DESC
-        LIMIT 6
-    ";
-    $stmt_best = $conn->prepare($sql_best);
-    $stmt_best->bind_param("s", $today);
-    $stmt_best->execute();
-    $bestsellers = $stmt_best->get_result();
-}
-
-// إعداد استعلام المنتجات الأساسية
-$sql = "SELECT p.*, c.name AS category_name 
-        FROM products p 
-        LEFT JOIN categories c ON p.category_id = c.id 
-        WHERE p.is_active = 1";
-$params = [];
-$types  = "";
-
-// فلترة بالبحث
-$current_search = '';
-if (!empty($_GET['q'])) {
-    $q = "%".$_GET['q']."%";
-    $sql .= " AND p.name LIKE ?";
-    $params[] = $q;
-    $types   .= "s";
-    $current_search = $_GET['q'];
-}
-
-// فلترة بالتصنيف
-$current_cat = '';
-$current_cat_name = '';
-if (!empty($_GET['cat'])) {
-    $cat_id = (int) $_GET['cat'];
-    // جلب اسم التصنيف
-    $cat_stmt = $conn->prepare("SELECT name FROM categories WHERE id = ?");
-    $cat_stmt->bind_param("i", $cat_id);
-    $cat_stmt->execute();
-    $cat_result = $cat_stmt->get_result();
-    if ($cat_row = $cat_result->fetch_assoc()) {
-        $current_cat_name = $cat_row['name'];
-    }
-    $cat_stmt->close();
-    
-    // فلترة المنتجات: إما في التصنيف المحدد أو في تصنيفات فرعية له
-    // نستخدم استعلام فرعي للتصنيفات الفرعية
-    $sql .= " AND (p.category_id = ? OR p.category_id IN (SELECT id FROM categories WHERE parent_id = ?))";
-    $params[] = $cat_id;
-    $params[] = $cat_id;
-    $types   .= "ii";
-    $current_cat = $cat_id;
-}
-
-// ترتيب: أولاً الترند ثم الأحدث
-$sql .= " ORDER BY p.is_trending DESC, p.created_at DESC";
-
-$stmt = $conn->prepare($sql);
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
-}
-$stmt->execute();
-$result = $stmt->get_result();
-
-$cart_count = isset($_SESSION['cart']) ? array_sum($_SESSION['cart']) : 0;
-$error = isset($_SESSION['error']) ? $_SESSION['error'] : '';
-unset($_SESSION['error']);
-?>
