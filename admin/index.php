@@ -1,10 +1,3 @@
-<?php include 'header.php'; ?>
-
-<?php
-$orders_count   = $conn->query("SELECT COUNT(*) AS c FROM orders")->fetch_assoc()['c'];
-$products_count = $conn->query("SELECT COUNT(*) AS c FROM products")->fetch_assoc()['c'];
-$pending_count  = $conn->query("SELECT COUNT(*) AS c FROM orders WHERE status = 'جديد'")->fetch_assoc()['c'];
-?>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 mb-0">لوحة التحكم</h2>
     <span class="text-muted small">إدارة متجر الطازج للدواجن واللحوم</span>
@@ -56,5 +49,12 @@ $pending_count  = $conn->query("SELECT COUNT(*) AS c FROM orders WHERE status = 
         </ul>
     </div>
 </div>
+<?php include 'header.php'; ?>
+
+<?php
+$orders_count   = $conn->query("SELECT COUNT(*) AS c FROM orders")->fetch_assoc()['c'];
+$products_count = $conn->query("SELECT COUNT(*) AS c FROM products")->fetch_assoc()['c'];
+$pending_count  = $conn->query("SELECT COUNT(*) AS c FROM orders WHERE status = 'جديد'")->fetch_assoc()['c'];
+?>
 
 <?php include 'footer.php'; ?>

@@ -1,13 +1,4 @@
-<?php
-session_start();
-require '../db.php';
-require '../functions.php';
 
-if (!is_logged_in()) {
-    header("Location: login.php");
-    exit;
-}
-?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
     <link rel="icon" href="../assets/img/Altazaj.png" >
@@ -47,7 +38,16 @@ if (!is_logged_in()) {
     </style>
 </head>
 <body>
+<?php
+session_start();
+require '../db.php';
+require '../functions.php';
 
+if (!is_logged_in()) {
+    header("Location: login.php");
+    exit;
+}
+?>
 <!-- Navbar أعلى الصفحة -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
@@ -106,4 +106,3 @@ if (!is_logged_in()) {
 
         <!-- المحتوى الرئيسي -->
         <main class="col-md-9 col-lg-10 p-4">
-            
