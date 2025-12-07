@@ -1,8 +1,8 @@
 <?php
 $host = "localhost";
-$user = "u970108170_al_tazaj";
-$pass = "Al_tazaj!@2025";
-$dbname = "u970108170_al_tazaj";
+$user = "root";
+$pass = "";
+$dbname = "altazaj_shop";
 
 $conn = new mysqli($host, $user, $pass, $dbname);
 
