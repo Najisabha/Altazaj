@@ -2,20 +2,21 @@
 
 $envPath = __DIR__ . '/.env';
 
-// تأكد أن الملف موجود وقابل للقراءة
-if (!is_readable($envPath)) {
-    die('.env file not found or not readable');
+if (!file_exists($envPath)) {
+    die('.env file not found');
 }
 
-// قراءة الملف
+if (!is_readable($envPath)) {
+    die('.env file exists but is not readable');
+}
+
 $env = parse_ini_file($envPath);
 
 if ($env === false) {
-    die('Error parsing .env file. Please check its syntax.');
+    die('Error parsing .env file');
 }
 
-// تعريف الثوابت
-define('DB_HOST', $env['DB_HOST'] ?? 'localhost');
-define('DB_USER', $env['DB_USER'] ?? '');
-define('DB_PASS', $env['DB_PASS'] ?? '');
-define('DB_NAME', $env['DB_NAME'] ?? '');
+define('DB_HOST', $env['DB_HOST']);
+define('DB_USER', $env['DB_USER']);
+define('DB_PASS', $env['DB_PASS']);
+define('DB_NAME', $env['DB_NAME']);
