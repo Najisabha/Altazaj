@@ -1,5 +1,5 @@
 .env
-config.php
+# config.php
 db.php
 uploads/
 admin/settings.php
