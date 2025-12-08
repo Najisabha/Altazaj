@@ -1,13 +1,10 @@
 <?php
-$host = "localhost";
-$user = "u970108170_Al_tazaj";
-$pass = "Al_tazaj!@2025";
-$dbname = "u970108170_Al_tazaj";
+require __DIR__ . "/config.php";
 
-$conn = new mysqli($host, $user, $pass, $dbname);
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($conn->connect_error) {
-    die("فشل الاتصال بقاعدة البيانات: " . $conn->connect_error);
+    die("فشل الاتصال بقاعدة البيانات");
 }
 
 $conn->set_charset("utf8mb4");

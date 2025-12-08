@@ -1,3 +1,5 @@
-# db.php
-# uploads/
-# admin/settings.php
+.env
+config.php
+db.php
+uploads/
+admin/settings.php
