@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'db.php';
+require __DIR__ . '/db.php';
 
 // جلب التصنيفات الرئيسية (أب فقط) - مع إعادة تعيين المؤشر
 $cats_result_all = $conn->query("SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1");
