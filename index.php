@@ -169,7 +169,7 @@ unset($_SESSION['error']);
         </button>
 
         <div class="collapse navbar-collapse" id="mainNavbar">
-            <!-- بحث -->
+            <!-- البحث -->
             <form class="d-flex ms-auto my-2 my-lg-0" method="GET" action="index.php">
                 <input class="form-control me-2" type="search" name="q"
                        placeholder="ابحث عن منتج..."
@@ -177,7 +177,6 @@ unset($_SESSION['error']);
                 <button class="btn btn-outline-light" type="submit">بحث</button>
             </form>
 
-            <!-- السلة + أزرار المستخدم -->
             <ul class="navbar-nav me-3 mb-2 mb-lg-0 align-items-center">
 
                 <!-- السلة -->
@@ -192,8 +191,8 @@ unset($_SESSION['error']);
                     </a>
                 </li>
 
-                <!-- أزرار تسجيل الدخول / حسابي -->
                 <?php if (isset($_SESSION['user_id'])): ?>
+                    <!-- مستخدم مسجّل دخول -->
                     <li class="nav-item ms-3">
                         <span class="nav-link text-white">
                             أهلاً، <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'عميل'); ?>
@@ -221,8 +220,19 @@ unset($_SESSION['error']);
                             تسجيل الخروج
                         </a>
                     </li>
+
                 <?php else: ?>
-                    <!-- أزرار تسجيل الدخول / إنشاء حساب -->
+                    <!-- زائر: أزرار تسجيل الدخول وإنشاء حساب -->
+                    <li class="nav-item ms-2">
+                        <a href="login.php" class="btn btn-light btn-sm">
+                            تسجيل الدخول
+                        </a>
+                    </li>
+                    <li class="nav-item ms-2">
+                        <a href="register.php" class="btn btn-outline-light btn-sm">
+                            إنشاء حساب
+                        </a>
+                    </li>
                 <?php endif; ?>
 
             </ul>
