@@ -1,6 +1,19 @@
 <?php
 session_start();
 require __DIR__ . '/db.php';
+if ($user && $user['password'] === $password) {
+
+    $_SESSION['user_id']   = (int)$user['id'];
+    $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
+    $_SESSION['user_role'] = $user['role']; // 'user' أو 'admin'
+
+    if ($user['role'] === 'admin') {
+        header('Location: admin/index.php');
+    } else {
+        header('Location: index.php');
+    }
+    exit;
+}
 
 // جلب التصنيفات الرئيسية (أب فقط) - مع إعادة تعيين المؤشر
 $cats_result_all = $conn->query("SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1");
@@ -192,46 +205,31 @@ unset($_SESSION['error']);
                 </li>
 
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <!-- مستخدم مسجّل دخول -->
                     <li class="nav-item ms-3">
                         <span class="nav-link text-white">
                             أهلاً، <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'عميل'); ?>
                         </span>
                     </li>
 
-                    <?php if (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'user'): ?>
+                    <?php if ($_SESSION['user_role'] === 'user'): ?>
                         <li class="nav-item ms-2">
-                            <a href="settings.php" class="btn btn-outline-light btn-sm">
-                                الإعدادات
-                            </a>
+                            <a href="settings.php" class="btn btn-outline-light btn-sm">الإعدادات</a>
                         </li>
-                    <?php endif; ?>
-
-                    <?php if (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                    <?php elseif ($_SESSION['user_role'] === 'admin'): ?>
                         <li class="nav-item ms-2">
-                            <a href="admin/index.php" class="btn btn-outline-light btn-sm">
-                                لوحة التحكم
-                            </a>
+                            <a href="admin/index.php" class="btn btn-outline-light btn-sm">لوحة التحكم</a>
                         </li>
                     <?php endif; ?>
 
                     <li class="nav-item ms-2">
-                        <a href="logout.php" class="btn btn-light btn-sm">
-                            تسجيل الخروج
-                        </a>
+                        <a href="logout.php" class="btn btn-light btn-sm">تسجيل الخروج</a>
                     </li>
-
                 <?php else: ?>
-                    <!-- زائر: أزرار تسجيل الدخول وإنشاء حساب -->
                     <li class="nav-item ms-2">
-                        <a href="login.php" class="btn btn-light btn-sm">
-                            تسجيل الدخول
-                        </a>
+                        <a href="login.php" class="btn btn-light btn-sm">تسجيل الدخول</a>
                     </li>
                     <li class="nav-item ms-2">
-                        <a href="register.php" class="btn btn-outline-light btn-sm">
-                            إنشاء حساب
-                        </a>
+                        <a href="register.php" class="btn btn-outline-light btn-sm">إنشاء حساب</a>
                     </li>
                 <?php endif; ?>
 
