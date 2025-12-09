@@ -115,6 +115,10 @@ $cart_count = isset($_SESSION['cart']) ? array_sum($_SESSION['cart']) : 0;
 $error = isset($_SESSION['error']) ? $_SESSION['error'] : '';
 unset($_SESSION['error']);
 ?>
+<?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'user'): ?>
+    <a href="settings.php" class="btn btn-outline-light btn-sm">الإعدادات</a>
+<?php endif; ?>
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -190,12 +194,19 @@ unset($_SESSION['error']);
 
                 <!-- أزرار تسجيل الدخول / حسابي -->
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <!-- مستخدم مسجّل دخول -->
                     <li class="nav-item ms-3">
                         <span class="nav-link text-white">
                             أهلاً، <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'عميل'); ?>
                         </span>
                     </li>
+
+                    <?php if (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'user'): ?>
+                        <li class="nav-item ms-2">
+                            <a href="settings.php" class="btn btn-outline-light btn-sm">
+                                الإعدادات
+                            </a>
+                        </li>
+                    <?php endif; ?>
 
                     <?php if (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
                         <li class="nav-item ms-2">
@@ -210,19 +221,8 @@ unset($_SESSION['error']);
                             تسجيل الخروج
                         </a>
                     </li>
-
                 <?php else: ?>
-                    <!-- زائر -->
-                    <li class="nav-item ms-2">
-                        <a href="login.php" class="btn btn-light btn-sm">
-                            تسجيل الدخول
-                        </a>
-                    </li>
-                    <li class="nav-item ms-2">
-                        <a href="register.php" class="btn btn-outline-light btn-sm">
-                            إنشاء حساب
-                        </a>
-                    </li>
+                    <!-- أزرار تسجيل الدخول / إنشاء حساب -->
                 <?php endif; ?>
 
             </ul>
