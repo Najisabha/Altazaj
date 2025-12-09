@@ -173,8 +173,10 @@ unset($_SESSION['error']);
                 <button class="btn btn-outline-light" type="submit">بحث</button>
             </form>
 
-            <!-- السلة -->
-            <ul class="navbar-nav me-3 mb-2 mb-lg-0">
+            <!-- السلة + أزرار المستخدم -->
+            <ul class="navbar-nav me-3 mb-2 mb-lg-0 align-items-center">
+
+                <!-- السلة -->
                 <li class="nav-item ms-3">
                     <a class="btn btn-success position-relative" href="cart.php">
                         السلة 🛒
@@ -185,10 +187,49 @@ unset($_SESSION['error']);
                         <?php endif; ?>
                     </a>
                 </li>
+
+                <!-- أزرار تسجيل الدخول / حسابي -->
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <!-- مستخدم مسجّل دخول -->
+                    <li class="nav-item ms-3">
+                        <span class="nav-link text-white">
+                            أهلاً، <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'عميل'); ?>
+                        </span>
+                    </li>
+
+                    <?php if (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                        <li class="nav-item ms-2">
+                            <a href="admin/index.php" class="btn btn-outline-light btn-sm">
+                                لوحة التحكم
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <li class="nav-item ms-2">
+                        <a href="logout.php" class="btn btn-light btn-sm">
+                            تسجيل الخروج
+                        </a>
+                    </li>
+
+                <?php else: ?>
+                    <!-- زائر -->
+                    <li class="nav-item ms-2">
+                        <a href="login.php" class="btn btn-light btn-sm">
+                            تسجيل الدخول
+                        </a>
+                    </li>
+                    <li class="nav-item ms-2">
+                        <a href="register.php" class="btn btn-outline-light btn-sm">
+                            إنشاء حساب
+                        </a>
+                    </li>
+                <?php endif; ?>
+
             </ul>
         </div>
     </div>
 </nav>
+
 
 <!-- المحتوى الرئيسي -->
 <div class="container">
