@@ -1,17 +1,10 @@
 <?php
 session_start();
 require __DIR__ . '/db.php';
-if ($user && $user['password'] === $password) {
 
-    $_SESSION['user_id']   = (int)$user['id'];
-    $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
-    $_SESSION['user_role'] = $user['role']; // 'user' أو 'admin'
-
-    if ($user['role'] === 'admin') {
-        header('Location: admin/index.php');
-    } else {
-        header('Location: index.php');
-    }
+// لو المستخدم أدمن وتم فتح الصفحة الرئيسية، نحوله مباشرة للوحة التحكم
+if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin') {
+    header('Location: admin/index.php');
     exit;
 }
 
@@ -203,7 +196,6 @@ unset($_SESSION['error']);
                         <?php endif; ?>
                     </a>
                 </li>
-
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <li class="nav-item ms-3">
                         <span class="nav-link text-white">
@@ -211,11 +203,11 @@ unset($_SESSION['error']);
                         </span>
                     </li>
 
-                    <?php if ($_SESSION['user_role'] === 'user'): ?>
+                    <?php if (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'user'): ?>
                         <li class="nav-item ms-2">
                             <a href="settings.php" class="btn btn-outline-light btn-sm">الإعدادات</a>
                         </li>
-                    <?php elseif ($_SESSION['user_role'] === 'admin'): ?>
+                    <?php elseif (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
                         <li class="nav-item ms-2">
                             <a href="admin/index.php" class="btn btn-outline-light btn-sm">لوحة التحكم</a>
                         </li>
