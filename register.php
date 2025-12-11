@@ -5,12 +5,19 @@ require __DIR__ . '/db.php';
 $error   = '';
 $success = '';
 
+// نضمن تعريف المتغيرات لتفادي الأخطاء في أول تحميل للصفحة
+$first_name  = $first_name  ?? '';
+$last_name   = $last_name   ?? '';
+$email       = $email       ?? '';
+$phone       = $phone       ?? '';
+$birth_date  = $birth_date  ?? '';
+$national_image = null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $first_name  = trim($_POST['first_name'] ?? '');
     $last_name   = trim($_POST['last_name'] ?? '');
     $email       = trim($_POST['email'] ?? '');
     $phone       = trim($_POST['full_phone'] ?? ''); // الرقم كامل مع المقدمة
-    $national_id = trim($_POST['national_id'] ?? '');
     $birth_date  = trim($_POST['birth_date'] ?? '');
     $password    = $_POST['password'] ?? '';
     $confirm     = $_POST['confirm_password'] ?? '';
@@ -23,30 +30,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($password !== $confirm) {
         $error = 'كلمتا المرور غير متطابقتين.';
     } else {
-        // هل البريد موجود؟
+        // هل البريد أو الجوال موجود؟
         $stmt = $conn->prepare("SELECT id FROM users WHERE email = ? OR phone = ?");
         $stmt->execute([$email, $phone]);
         if ($stmt->fetch()) {
             $error = 'البريد الإلكتروني أو رقم الجوال مستخدم من قبل.';
         } else {
-            // يمكنك لاحقاً استبدالها بـ password_hash
-            $hashed = $password;
+            // رفع صورة الهوية إن وجدت
+            $national_image = null;
 
-            $stmt = $conn->prepare("
-                INSERT INTO users (first_name, last_name, email, phone, national_id, birth_date, password, role, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'user', NOW())
-            ");
-            $stmt->execute([
-                $first_name,
-                $last_name,
-                $email,
-                $phone,
-                $national_id !== '' ? $national_id : null,
-                $birth_date  !== '' ? $birth_date  : null,
-                $hashed
-            ]);
+            if (!empty($_FILES['national_image']['name'])) {
+                $allowed = ['jpg','jpeg','png'];
+                $ext = strtolower(pathinfo($_FILES['national_image']['name'], PATHINFO_EXTENSION));
 
-            $success = 'تم إنشاء الحساب بنجاح، يمكنك تسجيل الدخول الآن.';
+                if (!in_array($ext, $allowed)) {
+                    $error = 'صيغة صورة الهوية غير مسموحة. الرجاء رفع ملف بصيغة JPG أو JPEG أو PNG.';
+                } else {
+                    $newName = 'id_' . time() . '_' . rand(1000,9999) . '.' . $ext;
+                    $uploadDir = __DIR__ . '/uploads/ids/';
+
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0777, true);
+                    }
+
+                    $uploadPath = $uploadDir . $newName;
+
+                    if (move_uploaded_file($_FILES['national_image']['tmp_name'], $uploadPath)) {
+                        $national_image = $newName;
+                    } else {
+                        $error = 'حدث خطأ أثناء رفع صورة الهوية. حاول مرة أخرى.';
+                    }
+                }
+            }
+
+            // لو ما في أخطاء لحد هون نكمل الإدخال
+            if ($error === '') {
+                // يمكنك لاحقاً استبدالها بـ password_hash وتعديل كود تسجيل الدخول
+                $hashed = $password;
+
+                $stmt = $conn->prepare("
+                    INSERT INTO users (first_name, last_name, email, phone, national_image, birth_date, password, role, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'user', NOW())
+                ");
+                $stmt->execute([
+                    $first_name,
+                    $last_name,
+                    $email,
+                    $phone,
+                    $national_image,                       // null لو ما رفع صورة
+                    $birth_date  !== '' ? $birth_date : null,
+                    $hashed
+                ]);
+
+                $success = 'تم إنشاء الحساب بنجاح، يمكنك تسجيل الدخول الآن.';
+                // تفريغ الحقول بعد نجاح التسجيل
+                $first_name = $last_name = $email = $phone = $birth_date = '';
+                $national_image = null;
+            }
         }
     }
 }
@@ -91,8 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 13px;
             opacity: 0.9;
         }
-
-</style>
+    </style>
 </head>
 <body>
 
@@ -102,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="brand-badge">متجر الطازج للدواجن واللحوم</div>
             <h3>إنشاء حساب جديد</h3>
         </div>
-        <img src="assets/img/Altazaj.png" alt="Logo">
+        <img src="assets/img/Altazaj.png" alt="Logo" height="50px" width="auto">
     </div>
 
     <div class="p-4">
@@ -114,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
         <?php endif; ?>
 
-        <form method="post" id="registerForm" novalidate>
+        <form method="post" id="registerForm" enctype="multipart/form-data" novalidate>
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">الاسم الأول *</label>
@@ -141,9 +180,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">رقم الهوية (اختياري)</label>
-                    <input type="text" name="national_id" class="form-control"
-                           value="<?= htmlspecialchars($national_id ?? '') ?>">
+                    <label class="form-label">صورة الهوية (اختياري)</label>
+                    <div class="border rounded-3 p-3 text-center bg-light">
+                        <img id="idPreview"
+                             src="https://cdn-icons-png.flaticon.com/512/942/942748.png"
+                             class="img-fluid mb-2"
+                             style="max-height:120px; opacity:.7;">
+                        <input type="file" name="national_image" class="form-control"
+                               accept="image/*"
+                               onchange="previewID(this)">
+                        <small class="text-muted d-block mt-1">PNG - JPG - JPEG فقط</small>
+                    </div>
                 </div>
 
                 <div class="col-md-6">
@@ -198,8 +245,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@21.2.4/build/js/utils.js"
     });
 
-    // عند الإرسال نخزن الرقم الكامل مع المقدمة في الحقل المخفي
-    document.getElementById("registerForm").addEventListener("submit", function () {
+    // تعبئة الرقم الكامل مع المقدمة في الحقل المخفي قبل الإرسال
+    document.getElementById("registerForm").addEventListener("submit", function (event) {
         if (iti.isValidNumber()) {
             fullPhoneField.value = iti.getNumber(); // مثال: +97259xxxxxxx
         } else {
@@ -207,6 +254,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             event.preventDefault();
         }
     });
+
+    // معاينة صورة الهوية
+    function previewID(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById("idPreview").src = e.target.result;
+                document.getElementById("idPreview").style.opacity = "1";
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
 </script>
 </body>
 </html>
