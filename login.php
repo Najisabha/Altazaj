@@ -105,20 +105,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             top: 14px;
             left: 50%;
             transform: translateX(-50%);
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: #fff;
+            width: 200px;
+            height: auto;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.35);
         }
         .auth-logo img {
-            width: 80%;
+            width: 100%;
             height: auto;
             object-fit: contain;
+
         }
         .auth-title {
             margin-top: 40px;
@@ -162,9 +160,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="auth-header">
             <div class="auth-logo">
                 <!-- تقدر تشيل الصورة لو مش حاب -->
-                <img src="assets/img/Altazaj.png" alt="Altazaj">
+                <img src="assets/img/Altazaj.png" alt="Altazaj" >
             </div>
-            <div class="auth-title">تسجيل الدخول</div>
+            <div class="auth-title mt-5">تسجيل الدخول</div>
             <div class="auth-subtitle">متجر الطازج للدواجن واللحوم</div>
         </div>
 

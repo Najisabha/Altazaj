@@ -121,10 +121,6 @@ $cart_count = isset($_SESSION['cart']) ? array_sum($_SESSION['cart']) : 0;
 $error = isset($_SESSION['error']) ? $_SESSION['error'] : '';
 unset($_SESSION['error']);
 ?>
-<?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'user'): ?>
-    <a href="settings.php" class="btn btn-outline-light btn-sm">الإعدادات</a>
-<?php endif; ?>
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
