@@ -91,7 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 13px;
             opacity: 0.9;
         }
-    </style>
+
+</style>
 </head>
 <body>
 
@@ -101,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="brand-badge">متجر الطازج للدواجن واللحوم</div>
             <h3>إنشاء حساب جديد</h3>
         </div>
-        <img src="assets/img/Altazaj.png" alt="Logo" style="width:50px;height:50px;border-radius:50%;background:#fff;">
+        <img src="assets/img/Altazaj.png" alt="Logo">
     </div>
 
     <div class="p-4">
@@ -137,7 +138,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="tel" id="phone" class="form-control" required>
                     <!-- هنا نخزن الرقم كامل مع المقدمة -->
                     <input type="hidden" name="full_phone" id="full_phone" value="<?= htmlspecialchars($phone ?? '') ?>">
-                    <small class="text-muted">استخدم نفس الرقم المرتبط بالواتساب للتواصل معك والعروض.</small>
                 </div>
 
                 <div class="col-md-6">
@@ -150,7 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label class="form-label">تاريخ الميلاد (اختياري)</label>
                     <input type="date" name="birth_date" class="form-control"
                            value="<?= htmlspecialchars($birth_date ?? '') ?>">
-                    <small class="text-muted">لإرسال هدية/كوبون في يوم ميلادك 🎉</small>
                 </div>
 
                 <div class="col-md-6">
