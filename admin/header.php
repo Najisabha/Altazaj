@@ -10,13 +10,15 @@ if (!is_logged_in()) {
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-    <link rel="icon" href="../assets/img/Altazaj.png" >
 <head>
     <meta charset="UTF-8">
     <title>لوحة التحكم - متجر الطازج</title>
+    <link rel="icon" href="../assets/img/Altazaj.png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <style>
         body {
+            margin: 0;              /* ✅ يلغي الشريط الأبيض فوق وتحت */
             background-color: #f8f9fa;
         }
         .sidebar {
@@ -96,6 +98,10 @@ if (!is_logged_in()) {
                    href="settings.php">
                     ⚙️ الإعدادات
                 </a>
+                <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'users.php' ? 'active' : ''; ?>"
+                   href="users.php">
+                    👥 إدارة المستخدمين
+                </a>
             </nav>
 
             <div class="mt-auto text-secondary small">
@@ -106,4 +112,3 @@ if (!is_logged_in()) {
 
         <!-- المحتوى الرئيسي -->
         <main class="col-md-9 col-lg-10 p-4">
-            

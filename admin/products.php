@@ -1,10 +1,8 @@
 <?php include 'header.php'; ?>
 
 <?php
-// جلب التصنيفات لاستخدامها في الفورم
 $cats = $conn->query("SELECT * FROM categories WHERE is_active = 1 ORDER BY name");
 
-// إضافة منتج جديد
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add'])) {
     $name   = trim($_POST['name']);
     $desc   = trim($_POST['description']);
@@ -20,8 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add'])) {
     }
 
     $stock_quantity = isset($_POST['stock_quantity']) && $_POST['stock_quantity'] !== '' ? (int)$_POST['stock_quantity'] : -1;
-    if ($stock_quantity < 0) $stock_quantity = -1; // -1 يعني غير محدود
-
+    if ($stock_quantity < 0) $stock_quantity = -1; 
     if ($name !== '' && $price > 0) {
         $stmt = $conn->prepare("INSERT INTO products (category_id, name, description, price, stock_quantity, unit, image) VALUES (?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("issdiss", $cat_id, $name, $desc, $price, $stock_quantity, $unit, $image_name);
@@ -32,7 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add'])) {
     }
 }
 
-// حذف منتج
 if (isset($_GET['delete'])) {
     $id = (int)$_GET['delete'];
     $conn->query("DELETE FROM products WHERE id = $id");
@@ -40,10 +36,9 @@ if (isset($_GET['delete'])) {
     exit;
 }
 
-// تغيير حالة الترند
 if (isset($_GET['trend']) && isset($_GET['tval'])) {
     $id  = (int)$_GET['trend'];
-    $val = (int)$_GET['tval']; // 0 أو 1
+    $val = (int)$_GET['tval']; 
     $stmt = $conn->prepare("UPDATE products SET is_trending = ? WHERE id = ?");
     $stmt->bind_param("ii", $val, $id);
     $stmt->execute();
@@ -52,10 +47,9 @@ if (isset($_GET['trend']) && isset($_GET['tval'])) {
     exit;
 }
 
-// تغيير حالة العرض
 if (isset($_GET['offer']) && isset($_GET['oval'])) {
     $id  = (int)$_GET['offer'];
-    $val = (int)$_GET['oval']; // 0 أو 1
+    $val = (int)$_GET['oval']; 
     $stmt = $conn->prepare("UPDATE products SET is_offer = ? WHERE id = ?");
     $stmt->bind_param("ii", $val, $id);
     $stmt->execute();
@@ -77,7 +71,6 @@ $products = $conn->query("
 </div>
 
 <div class="row g-3">
-    <!-- فورم إضافة منتج جديد -->
     <div class="col-md-4">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-success text-white">

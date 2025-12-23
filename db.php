@@ -1,13 +1,13 @@
 <?php
-$host = "localhost";
-$user = "root";
-$pass = "";
-$dbname = "altazaj_shop";
+// DB_HOST="localhost"
+// DB_USER="root"
+// DB_PASS=""
+// DB_NAME="u970108170_al_tazaj"
 
-$conn = new mysqli($host, $user, $pass, $dbname);
+$conn = new mysqli('localhost', 'root', '', 'u970108170_al_tazaj');
 
-if ($conn->connect_error) {
-    die("فشل الاتصال بقاعدة البيانات: " . $conn->connect_error);
+if ($conn->connect_errno) {
+    die('Database connection failed: ' . $conn->connect_error);
 }
 
-$conn->set_charset("utf8mb4");
+$conn->set_charset('utf8mb4');

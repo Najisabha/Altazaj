@@ -42,4 +42,19 @@ function sanitize_input($data) {
 function format_price($amount) {
     return number_format($amount, 2) . " ر.س";
 }
+function give_coupon_to_user(PDO $conn, int $user_id, int $coupon_id) {
+    // لا تعطي المستخدم نفس الكوبون أكثر من مرة
+    $check = $conn->prepare("SELECT id FROM user_coupons WHERE user_id = ? AND coupon_id = ?");
+    $check->execute([$user_id, $coupon_id]);
+    if ($check->fetch()) {
+        return; // موجود مسبقًا
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO user_coupons (user_id, coupon_id)
+        VALUES (?, ?)
+    ");
+    $stmt->execute([$user_id, $coupon_id]);
+}
+
 ?>

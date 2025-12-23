@@ -1,6 +1,12 @@
 <?php
 session_start();
-require 'db.php';
+require __DIR__ . '/db.php';
+
+// لو المستخدم أدمن وتم فتح الصفحة الرئيسية، نحوله مباشرة للوحة التحكم
+if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin') {
+    header('Location: admin/index.php');
+    exit;
+}
 
 // جلب التصنيفات الرئيسية (أب فقط) - مع إعادة تعيين المؤشر
 $cats_result_all = $conn->query("SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1");
@@ -115,6 +121,7 @@ $cart_count = isset($_SESSION['cart']) ? array_sum($_SESSION['cart']) : 0;
 $error = isset($_SESSION['error']) ? $_SESSION['error'] : '';
 unset($_SESSION['error']);
 ?>
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -165,7 +172,7 @@ unset($_SESSION['error']);
         </button>
 
         <div class="collapse navbar-collapse" id="mainNavbar">
-            <!-- بحث -->
+            <!-- البحث -->
             <form class="d-flex ms-auto my-2 my-lg-0" method="GET" action="index.php">
                 <input class="form-control me-2" type="search" name="q"
                        placeholder="ابحث عن منتج..."
@@ -173,8 +180,9 @@ unset($_SESSION['error']);
                 <button class="btn btn-outline-light" type="submit">بحث</button>
             </form>
 
-            <!-- السلة -->
-            <ul class="navbar-nav me-3 mb-2 mb-lg-0">
+            <ul class="navbar-nav me-3 mb-2 mb-lg-0 align-items-center">
+
+                <!-- السلة -->
                 <li class="nav-item ms-3">
                     <a class="btn btn-success position-relative" href="cart.php">
                         السلة 🛒
@@ -185,10 +193,40 @@ unset($_SESSION['error']);
                         <?php endif; ?>
                     </a>
                 </li>
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <li class="nav-item ms-3">
+                        <span class="nav-link text-white">
+                            أهلاً، <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'عميل'); ?>
+                        </span>
+                    </li>
+
+                    <?php if (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'user'): ?>
+                        <li class="nav-item ms-2">
+                            <a href="settings.php" class="btn btn-outline-light btn-sm">الإعدادات</a>
+                        </li>
+                    <?php elseif (!empty($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                        <li class="nav-item ms-2">
+                            <a href="admin/index.php" class="btn btn-outline-light btn-sm">لوحة التحكم</a>
+                        </li>
+                    <?php endif; ?>
+
+                    <li class="nav-item ms-2">
+                        <a href="logout.php" class="btn btn-light btn-sm">تسجيل الخروج</a>
+                    </li>
+                <?php else: ?>
+                    <li class="nav-item ms-2">
+                        <a href="login.php" class="btn btn-light btn-sm">تسجيل الدخول</a>
+                    </li>
+                    <li class="nav-item ms-2">
+                        <a href="register.php" class="btn btn-outline-light btn-sm">إنشاء حساب</a>
+                    </li>
+                <?php endif; ?>
+
             </ul>
         </div>
     </div>
 </nav>
+
 
 <!-- المحتوى الرئيسي -->
 <div class="container">
