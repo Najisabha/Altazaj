@@ -5,18 +5,33 @@ require __DIR__ . '/db.php';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+<<<<<<< HEAD
     $login    = trim($_POST['login'] ?? '');   
+=======
+    $login    = trim($_POST['login'] ?? '');   // إيميل أو جوال
+>>>>>>> 9de5bd0da54e063a5eefc5d47d2bf3d65415ccbc
     $password = $_POST['password'] ?? '';
 
     if ($login === '' || $password === '') {
         $error = 'الرجاء إدخال البريد الإلكتروني أو رقم الجوال وكلمة المرور.';
     } else {
 
+<<<<<<< HEAD
         if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
             $sql       = "SELECT * FROM users WHERE email = ?";
             $loginData = $login;
         } else {
             $phone = preg_replace('/\s+/', '', $login);
+=======
+        // تحديد نوع الإدخال: إيميل أو رقم جوال
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+            // تسجيل دخول بالبريد
+            $sql       = "SELECT * FROM users WHERE email = ?";
+            $loginData = $login;
+        } else {
+            // تسجيل دخول برقم الجوال مع المقدمة
+            $phone = preg_replace('/\s+/', '', $login); // حذف المسافات
+>>>>>>> 9de5bd0da54e063a5eefc5d47d2bf3d65415ccbc
             if (substr($phone, 0, 2) === '00') {
                 $phone = '+' . substr($phone, 2);
             }
@@ -24,6 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $loginData = $phone;
         }
 
+<<<<<<< HEAD
+=======
+        // mysqli
+>>>>>>> 9de5bd0da54e063a5eefc5d47d2bf3d65415ccbc
         $stmt = $conn->prepare($sql);
         if ($stmt) {
             $stmt->bind_param("s", $loginData);
@@ -36,10 +55,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user  = null;
         }
 
+<<<<<<< HEAD
         if ($user && $user['password'] === $password) {
             $_SESSION['user_id']   = (int)$user['id'];
             $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
             $_SESSION['user_role'] = $user['role']; 
+=======
+        // ملاحظة: حاليًا كلمات المرور نص عادي
+        if ($user && $user['password'] === $password) {
+            // لو فعّلت التشفير لاحقًا استخدم:
+            // if ($user && password_verify($password, $user['password'])) {
+
+            $_SESSION['user_id']   = (int)$user['id'];
+            $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
+            $_SESSION['user_role'] = $user['role']; // 'user' أو 'admin'
+
+>>>>>>> 9de5bd0da54e063a5eefc5d47d2bf3d65415ccbc
             if ($user['role'] === 'admin') {
                 header('Location: admin/index.php');
             } else {

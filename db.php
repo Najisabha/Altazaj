@@ -1,10 +1,10 @@
 <?php
-// DB_HOST="localhost"
-// DB_USER="root"
-// DB_PASS=""
-// DB_NAME="u970108170_al_tazaj"
+$host = "localhost";
+$user = "root";
+$pass = "";
+$dbname = "altazaj_shop";
 
-$conn = new mysqli('localhost', 'root', '', 'u970108170_al_tazaj');
+$conn = new mysqli($host, $user, $pass, $dbname);
 
 if ($conn->connect_errno) {
     die('Database connection failed: ' . $conn->connect_error);
